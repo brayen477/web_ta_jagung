@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgroAI - Sistem Deteksi Penyakit Daun Jagung</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Animate.css for smooth entry animations -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css" rel="stylesheet">
+</head>
+
+<body>
+    <!-- Main Dashboard Wrapper -->
+    <div class="container py-5">
+        
+        <!-- Academic Header (Berada di atas background hijau gelap, menggunakan teks putih/terang agar kontras) -->
+        <header class="mb-5 text-center animate__animated animate__fadeInDown">
+            <div class="d-flex justify-content-center mb-3">
+                <span class="header-badge">
+                    <i data-lucide="sprout" class="me-1"></i> AgroAI Agriculture Smart System
+                </span>
+            </div>
+            <h1 class="display-5 fw-bold text-white mb-2 font-display">
+                Deteksi Penyakit Daun Jagung
+            </h1>
+            <p class="text-light text-opacity-75 mx-auto" style="max-width: 650px; font-size: 1.05rem;">
+                Klasifikasi citra penyakit daun jagung menggunakan arsitektur deep learning <strong>MobileNetV2</strong>. 
+                Sistem pakar otomatis untuk diagnosis patogen klinis secara cepat dan akurat.
+            </p>
+            
+            <!-- Tech Badges -->
+            <div class="d-flex flex-wrap justify-content-center gap-2 mt-4">
+                <span class="tech-stat"><i data-lucide="cpu"></i> Model: MobileNetV2</span>
+                <span class="tech-stat"><i data-lucide="image"></i> Input: 224x224 RGB</span>
+                <span class="tech-stat"><i data-lucide="layers"></i> Output: 7 Kelas</span>
+                <span class="tech-stat"><i data-lucide="sparkles"></i> Akurasi: ~90%</span>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Grid -->
+        <div class="row g-4 justify-content-center">
+            
+            <!-- Left Panel: Input & Image Upload -->
+            <div class="col-lg-5 animate__animated animate__fadeInLeft">
+                <div class="glass-panel p-4 h-100 d-flex flex-column justify-content-between">
+                    <div>
+                        <!-- Header panel menggunakan teks gelap agar terbaca jelas di atas panel putih -->
+                        <div class="d-flex justify-content-between align-items-center mb-4">
+                            <h4 class="m-0 text-dark fw-bold"><i data-lucide="upload-cloud" class="me-2 text-success"></i> Input Citra</h4>
+                            <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20 px-2 py-1" style="font-size: 0.75rem;">Siap</span>
+                        </div>
+                        
+                        <form action="/" method="POST" enctype="multipart/form-data" id="uploadForm">
+                            <!-- Drag & Drop Zone -->
+                            <div class="dropzone-container" id="dropzone">
+                                <input class="file-input" type="file" id="file" name="file" accept="image/*" required>
+                                <div class="dropzone-prompt" id="dropzonePrompt">
+                                    <div class="dropzone-icon">
+                                        <i data-lucide="image-plus" style="width: 48px; height: 48px;"></i>
+                                    </div>
+                                    <!-- Diubah ke text-dark agar terbaca jelas -->
+                                    <h5 class="text-dark mb-2 fw-bold">Tarik & Letakkan Gambar</h5>
+                                    <p class="text-muted small mb-3">Mendukung format JPG, JPEG, atau PNG (maks. 5MB)</p>
+                                    <button type="button" class="btn btn-sm btn-outline-success px-4" style="border-radius: 8px; font-weight: 600;">Pilih Berkas</button>
+                                </div>
+                                
+                                <!-- File Preview Container (hidden by default) -->
+                                <div class="image-preview-wrapper d-none" id="previewWrapper">
+                                    <img src="#" alt="Pratinjau Daun" id="imagePreview">
+                                    <div class="scan-line" id="scanLineEffect"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Action Buttons -->
+                            <div class="mt-4 d-flex gap-2">
+                                <button type="button" class="btn btn-reset d-none w-25" id="btnReset">
+                                    <i data-lucide="trash-2"></i>
+                                </button>
+                                <button type="submit" class="btn btn-glow w-100 py-3" id="btnSubmit" disabled>
+                                    <i data-lucide="wand-2" class="me-2"></i> Jalankan Deteksi AI
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                    
+                    <!-- App Info Note -->
+                    <div class="mt-4 p-3 rounded-3" style="background: rgba(5, 150, 105, 0.04); border: 1px solid rgba(5, 150, 105, 0.08);">
+                        <div class="d-flex gap-2 align-items-start text-muted" style="font-size: 0.8rem; line-height: 1.4;">
+                            <i data-lucide="info" class="text-success mt-0.5" style="flex-shrink: 0; width: 16px; height: 16px;"></i>
+                            <span class="text-dark">Pastikan gambar terfokus langsung pada helai daun jagung dengan pencahayaan yang cukup untuk hasil prediksi optimal.</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results & Diagnosis -->
+            <div class="col-lg-7 animate__animated animate__fadeInRight">
+                <div class="glass-panel p-4 h-100">
+                    
+                    <!-- State 1: Awaiting Input (Placeholder) -->
+                    {% if not prediction and not error_message %}
+                    <div class="d-flex flex-column justify-content-center align-items-center h-100 py-5 text-center" id="awaitingPlaceholder">
+                        <div class="pulse-radar">
+                            <div class="pulse-circle"></div>
+                            <div class="pulse-circle pulse-circle-2"></div>
+                            <div class="pulse-core">
+                                <i data-lucide="scan"></i>
+                            </div>
+                        </div>
+                        <!-- Diubah ke text-dark agar terbaca jelas -->
+                        <h4 class="text-dark mb-2 mt-3 fw-bold">Menunggu Masukan Citra</h4>
+                        <p class="text-muted mx-auto" style="max-width: 320px; font-size: 0.9rem;">
+                            Unggah foto daun jagung pada panel di sebelah kiri untuk mendeteksi jenis penyakit tanaman secara otomatis.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- State 2: Diagnosis Results -->
+                    {% if prediction %}
+                    <div class="h-100 d-flex flex-column justify-content-between" id="resultContainer">
+                        <div>
+                            <!-- Result Header -->
+                            <div class="result-header d-flex justify-content-between align-items-center">
+                                <div>
+                                    <span class="text-success text-uppercase font-display fw-bold tracking-wider" style="font-size: 0.75rem;">Hasil Diagnosis Model</span>
+                                    <!-- Menggunakan text-success/hijau gelap agar sangat terbaca -->
+                                    <h2 class="text-success mt-1 mb-0 font-display fw-bold" id="resTitle" style="color: #047857;">{{ prediction }}</h2>
+                                </div>
+                                <span class="badge bg-success bg-opacity-10 text-success border border-success border-opacity-20 px-3 py-2 fs-6 rounded-3" style="font-weight: 700;">
+                                    <i data-lucide="check-circle" class="me-1 align-middle" style="width: 18px; height: 18px;"></i> Teranalisis
+                                </span>
+                            </div>
+
+                            <!-- Image & Quick Stats Grid -->
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-5">
+                                    <div class="image-preview-wrapper mt-0 shadow-sm">
+                                        <img src="{{ uploaded_image }}" class="img-fluid" alt="Gambar Teruji">
+                                        <!-- Active Scanning Pulse on Result -->
+                                        <div class="scan-line"></div>
+                                    </div>
+                                </div>
+                                <div class="col-md-7 d-flex flex-column justify-content-between">
+                                    <div class="info-sub-card">
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <span class="info-label">Akurasi Keyakinan (Confidence)</span>
+                                            <span class="text-success fw-bold font-display" style="font-size: 1.25rem;">{{ confidence }}%</span>
+                                        </div>
+                                        <div class="accuracy-bar-container">
+                                            <div class="accuracy-bar" id="accuracyProgressBar" style="width: 0%;"></div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row g-2 mt-2">
+                                        <div class="col-6">
+                                            <div class="info-sub-card p-3">
+                                                <div class="info-label">Kategori Patogen</div>
+                                                <div class="info-val text-truncate text-success" id="resScientific" style="font-size: 0.85rem; font-weight: 700;">-</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="info-sub-card p-3">
+                                                <div class="info-label">Kecepatan Deteksi</div>
+                                                <div class="info-val text-dark" style="font-size: 0.85rem;"><i data-lucide="timer" class="text-success me-1" style="width: 14px;"></i> ~0.24 detik</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Diagnostic Tab Layout -->
+                            <div class="diag-tabs" id="diagTabs">
+                                <button class="diag-tab-btn active" data-tab="about">
+                                    <i data-lucide="book-open" style="width: 16px;"></i> Deskripsi
+                                </button>
+                                <button class="diag-tab-btn" data-tab="symptoms">
+                                    <i data-lucide="activity" style="width: 16px;"></i> Gejala Klinis
+                                </button>
+                                <button class="diag-tab-btn" data-tab="solutions">
+                                    <i data-lucide="shield-check" style="width: 16px;"></i> Rekomendasi
+                                </button>
+                            </div>
+
+                            <!-- Diagnostic Tab Contents -->
+                            <div class="tab-contents mt-3">
+                                <!-- Tab 1: Description -->
+                                <div class="tab-content active text-dark" id="tab-about">
+                                    <p id="resDesc" style="font-size: 0.95rem; line-height: 1.6;"></p>
+                                </div>
+                                <!-- Tab 2: Symptoms -->
+                                <div class="tab-content text-dark" id="tab-symptoms">
+                                    <ul class="ps-3" id="resSymptoms" style="font-size: 0.95rem; line-height: 1.6;">
+                                        <!-- Injected via JS -->
+                                    </ul>
+                                </div>
+                                <!-- Tab 3: Recommendations -->
+                                <div class="tab-content text-dark" id="tab-solutions">
+                                    <ul class="ps-3" id="resSolutions" style="font-size: 0.95rem; line-height: 1.6;">
+                                        <!-- Injected via JS -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Reset to Await State -->
+                        <div class="mt-4 pt-3 border-top border-secondary border-opacity-10 text-end">
+                            <a href="/" class="btn btn-outline-secondary px-4 py-2" style="border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+                                <i data-lucide="refresh-cw" class="me-2" style="width: 16px;"></i> Analisis Ulang Daun Baru
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- State 3: Error / Invalid Image State -->
+                    {% if error_message %}
+                    <div class="h-100 d-flex flex-column justify-content-center align-items-center py-5 text-center animate__animated animate__fadeIn" id="errorContainer">
+                        <div class="rounded-circle bg-danger bg-opacity-10 border border-danger border-opacity-20 p-4 mb-4 text-danger d-flex align-items-center justify-content-center" style="width: 80px; height: 80px; box-shadow: 0 0 15px rgba(239, 68, 68, 0.15);">
+                            <i data-lucide="alert-triangle" style="width: 48px; height: 48px;"></i>
+                        </div>
+                        <h3 class="text-danger mb-2 fw-bold font-display">Gambar Tidak Valid!</h3>
+                        <p class="text-muted mx-auto mb-4" style="max-width: 420px; font-size: 0.95rem; line-height: 1.55;">
+                            {{ error_message }}
+                        </p>
+                        <div class="image-preview-wrapper shadow-sm mb-4" style="max-width: 260px; border: 2px solid rgba(239, 68, 68, 0.2);">
+                            <img src="{{ uploaded_image }}" class="img-fluid" alt="Pratinjau Gagal">
+                        </div>
+                        <div class="mt-2 text-center">
+                            <a href="/" class="btn btn-outline-secondary px-4 py-2" style="border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+                                <i data-lucide="refresh-cw" class="me-2" style="width: 16px;"></i> Ulangi Unggah Gambar
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Full-screen Scanning AI Overlay (Triggered on Submit) -->
+        <div class="scan-overlay d-none" id="scanningOverlay">
+            <div class="text-center">
+                <div class="pulse-radar mx-auto" style="width: 80px; height: 80px;">
+                    <div class="pulse-circle" style="background: rgba(5, 150, 105, 0.2);</div>
+                    <div class="pulse-circle pulse-circle-2" style="background: rgba(5, 150, 105, 0.2);"></div>
+                    <div class="pulse-core" style="width: 48px; height: 48px; top: 16px; left: 16px; background: var(--primary); box-shadow: 0 0 25px var(--primary);">
+                        <i data-lucide="refresh-cw" class="animate-spin" style="animation: spin 2s linear infinite;"></i>
+                    </div>
+                </div>
+                <!-- Diubah ke text-dark agar terbaca di overlay putih -->
+                <h4 class="text-dark mt-4 font-display fw-bold" id="overlayTitle">Memproses Citra Daun...</h4>
+                <p class="text-muted px-4 mt-2 mx-auto" style="max-width: 420px; font-size: 0.9rem;" id="overlaySubtitle">
+                    Mengunggah file ke server lokal...
+                </p>
+                <div class="progress mx-auto mt-4" style="width: 280px; height: 6px; background: rgba(0,0,0,0.06); border-radius: 50px; overflow: hidden;">
+                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" id="overlayProgressBar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Interactive Encyclopedia (Katalog Penyakit - Berada di atas background hijau gelap, menggunakan teks putih) -->
+        <section class="mt-5 pt-5 border-top border-secondary border-opacity-10 animate__animated animate__fadeInUp">
+            <div class="text-center mb-5">
+                <span class="badge bg-success bg-opacity-20 text-white border border-success border-opacity-30 px-3 py-2 rounded-pill mb-2" style="background: rgba(16, 185, 129, 0.25);">Basis Pengetahuan</span>
+                <h2 class="text-white font-display fw-bold">Katalog Penyakit Tanaman Jagung</h2>
+                <p class="text-light text-opacity-75 mx-auto" style="max-width: 600px;">
+                    Pelajari gejala klinis dan langkah mitigasi akademis dari ke-7 kelas klasifikasi daun jagung yang dipelajari oleh model MobileNetV2.
+                </p>
+            </div>
+
+            <!-- Encyclopedia Grid -->
+            <div class="row g-3" id="encycloGrid">
+                <!-- Injected dynamically via JavaScript -->
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer class="mt-5 pt-4 text-center border-top border-secondary border-opacity-10 text-light text-opacity-50 small">
+            <p class="mb-1">&copy; 2026 AgroAI. Semua hak cipta dilindungi.</p>
+            <p class="text-opacity-40">Sistem Klasifikasi Penyakit Daun Jagung - Tugas Akhir / Skripsi Bidang Deep Learning</p>
+        </footer>
+
+    </div>
+
+    <!-- Encyclopedia Detail Modal (Styled Glassmorphism) -->
+    <div class="modal fade" id="diseaseModal" tabindex="-1" aria-labelledby="diseaseModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content modal-content-glass">
+                <div class="modal-header modal-header-custom d-flex justify-content-between align-items-center">
+                    <div>
+                        <span class="text-success text-uppercase font-display fw-bold" style="font-size: 0.75rem; letter-spacing: 0.05em;" id="modalCategory">Katalog Penyakit</span>
+                        <!-- Diubah ke text-dark agar terbaca di dalam modal putih -->
+                        <h3 class="modal-title text-dark mt-1 font-display fw-bold" id="modalTitle">Nama Penyakit</h3>
+                    </div>
+                    <button type="button" class="modal-close-btn" data-bs-dismiss="modal" aria-label="Close">
+                        <i data-lucide="x" style="width: 20px; height: 20px;"></i>
+                    </button>
+                </div>
+                <div class="modal-body modal-body-custom">
+                    <!-- Scientific Name Badge -->
+                    <div class="mb-4">
+                        <span class="px-3 py-1.5 rounded-3 bg-success bg-opacity-10 text-success border border-success border-opacity-20 font-monospace small" id="modalScientific">
+                            Patogen: -
+                        </span>
+                    </div>
+                    
+                    <!-- Description -->
+                    <div class="mb-4">
+                        <!-- Diubah ke text-dark -->
+                        <h5 class="text-dark font-display mb-2"><i data-lucide="info" class="me-2 text-success" style="width: 18px;"></i>Deskripsi Patogen</h5>
+                        <p class="text-dark text-opacity-75" id="modalDesc" style="line-height: 1.6; font-size: 0.95rem;"></p>
+                    </div>
+
+                    <!-- Grid of Symptoms and Solutions -->
+                    <div class="row g-4">
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-4 h-100" style="background: rgba(5, 150, 105, 0.04); border: 1px solid rgba(5, 150, 105, 0.08);">
+                                <!-- Diubah ke text-dark -->
+                                <h5 class="text-dark font-display mb-3"><i data-lucide="activity" class="me-2 text-warning" style="width: 18px;"></i>Gejala Klinis</h5>
+                                <ul class="text-dark text-opacity-75 ps-3 small" id="modalSymptoms" style="line-height: 1.6; display: flex; flex-direction: column; gap: 8px;">
+                                    <!-- Injected -->
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="p-3 rounded-4 h-100" style="background: rgba(5, 150, 105, 0.04); border: 1px solid rgba(5, 150, 105, 0.08);">
+                                <!-- Diubah ke text-dark -->
+                                <h5 class="text-dark font-display mb-3"><i data-lucide="shield-check" class="me-2 text-success" style="width: 18px;"></i>Tindakan Solutif</h5>
+                                <ul class="text-dark text-opacity-75 ps-3 small" id="modalSolutions" style="line-height: 1.6; display: flex; flex-direction: column; gap: 8px;">
+                                    <!-- Injected -->
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer modal-footer-custom justify-content-end">
+                    <button type="button" class="btn btn-outline-success px-4" data-bs-dismiss="modal" style="border-radius: 8px; font-weight: 600;">Selesai Membaca</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 Bundle JS with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Lucide Icons CDN -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Script Logic -->
+    <script>
+        // Database Penyakit Daun Jagung (Baku & Akademis)
+        const DISEASE_DATABASE = {
+            'Bercak Daun Helminthosporium': {
+                name: 'Bercak Daun Helminthosporium',
+                scientific: 'Jamur Bipolaris maydis',
+                icon: 'snowflake',
+                category: 'Penyakit Jamur (Fungal Disease)',
+                desc: 'Penyakit bercak daun helminthosporium disebabkan oleh jamur Bipolaris maydis. Jamur ini berkembang subur pada iklim panas dan lembab (kelembaban udara tinggi dengan suhu optimal 20-30°C). Spora jamur bertahan pada sisa tanaman di tanah dan disebarkan melalui angin atau cipratan air hujan. Infeksi parah pada fase vegetatif akhir dapat mengganggu fotosintesis dan mengakibatkan penurunan hasil panen jagung yang signifikan.',
+                symptoms: [
+                    'Muncul bercak kecil berupa bintik kebasah-basahan pada daun muda.',
+                    'Bercak membesar membentuk pola oval lonjong berukuran 1-2.5 cm.',
+                    'Bagian pusat bercak berwarna cokelat muda kelabu, dibatasi lingkaran tebal berwarna cokelat tua kemerahan.',
+                    'Pada serangan ekstrem, bercak menyatu sehingga memicu matinya seluruh helai daun.'
+                ],
+                solutions: [
+                    'Gunakan varietas benih hibrida komersial yang bersertifikat tahan penyakit.',
+                    'Lakukan rotasi tanaman dengan tanaman bukan keluarga rumput (misalnya kedelai atau kacang tanah) untuk memutus siklus hidup jamur.',
+                    'Bersihkan lahan dari sisa tanaman pasca panen dengan pembajakan mendalam.',
+                    'Aplikasikan fungisida sistemik berbahan aktif mankozeb atau tebukonazol apabila serangan terjadi sebelum pembungaan.'
+                ]
+            },
+            'Bercak Daun Mata Ikan': {
+                name: 'Bercak Daun Mata Ikan',
+                scientific: 'Jamur Physoderma maydis',
+                icon: 'eye',
+                category: 'Penyakit Jamur (Fungal Disease)',
+                desc: 'Penyakit bercak cokelat Physoderma, sering dikenal sebagai bercak mata ikan, disebabkan oleh jamur Physoderma maydis. Penyakit ini menyerang bagian daun, pelepah, dan batang tanaman jagung. Spora jamur ini bertahan dalam bentuk struktur rehat (sporangia) di dalam tanah atau sisa tanaman terinfeksi selama bertahun-tahun. Infeksi dipicu oleh curah hujan yang sangat tinggi pada awal masa tanam.',
+                symptoms: [
+                    'Bercak berukuran sangat halus (1-2 mm) bermunculan secara rapat di sepanjang tulang daun.',
+                    'Bercak berubah warna menjadi cokelat tua keunguan mirip bintik mata ikan.',
+                    'Serangan pada pelepah daun menyebabkan pelepah menjadi cokelat berdebu kasar.',
+                    'Infeksi pada pangkal batang bawah dapat memicu pelunakan jaringan batang sehingga tanaman mudah rebah terkena angin.'
+                ],
+                solutions: [
+                    'Perbaiki drainase tanah secara optimal agar tidak terjadi akumulasi air permukaan.',
+                    'Terapkan pemupukan nitrogen dan kalium yang seimbang (hindari penggunaan nitrogen berlebihan).',
+                    'Lakukan rotasi komoditas tanaman minimal selama satu tahun penuh.',
+                    'Lakukan penimbunan tanah atau pembajakan dalam untuk menimbun spora di lapisan tanah yang lebih dalam.'
+                ]
+            },
+            'Daun Bercak Abu-Abu': {
+                name: 'Daun Bercak Abu-Abu',
+                scientific: 'Jamur Cercospora zeae-maydis',
+                icon: 'grid',
+                category: 'Penyakit Jamur (Fungal Disease)',
+                desc: 'Gray Leaf Spot (GLS) atau bercak abu-abu disebabkan oleh jamur Cercospora zeae-maydis. Ini adalah salah satu penyakit daun jagung yang paling destruktif secara global. Jamur berkembang biak secara masif pada kondisi cuaca hangat, mendung, dan kelembaban udara yang sangat tinggi (di atas 90%). Penyakit ini memicu kematian sel daun secara masif.',
+                symptoms: [
+                    'Bercak awal tampak sebagai titik kuning-kecokelatan transparan yang dikelilingi warna pudar.',
+                    'Bercak tumbuh memanjang secara linear searah tulang daun, membentuk pola persegi panjang bersudut tegas menyerupai balok.',
+                    'Bercak berubah warna menjadi abu-abu keperakan karena terbentuknya spora jamur di permukaan daun.',
+                    'Daun bagian bawah tanaman akan layu mengering terlebih dahulu kemudian menjalar ke daun bagian atas.'
+                ],
+                solutions: [
+                    'Lakukan rotasi tanaman minimal 2 musim menjauh dari tanaman jagung.',
+                    'Pembersihan sisa panen dan pembakaran terkontrol pada tanaman bergejala akut.',
+                    'Tanam varietas hibrida komersial modern yang memiliki tingkat toleransi tinggi terhadap penyakit Cercospora.',
+                    'Bila diperlukan, aplikasikan fungisida golongan triazol secara preventif saat fase vegetatif akhir.'
+                ]
+            },
+            'Daun Bulai': {
+                name: 'Daun Bulai',
+                scientific: 'Oomycete Peronosclerospora maydis',
+                icon: 'shield-alert',
+                category: 'Penyakit Sistemik Mematikan',
+                desc: 'Bulai (Downy Mildew) merupakan penyakit paling mematikan dan bersifat endemik pada tanaman jagung di Indonesia, disebabkan oleh organisme golongan Oomycete (Peronosclerospora maydis). Penyakit ini bersifat sistemik. Jika bibit jagung terinfeksi pada usia di bawah 3 minggu, tanaman dipastikan tidak akan menghasilkan buah (mandul/puso). Spora bulai disebarkan oleh angin pada malam hari dalam kondisi kelembaban udara tinggi.',
+                symptoms: [
+                    'Muncul garis klorosis vertikal (berwarna kuning keputihan) memanjang sejajar dengan tulang daun.',
+                    'Daun tanaman yang terserang mengeras, menyempit, dan tumbuh tegak kaku.',
+                    'Pada pagi hari, terlihat lapisan tepung putih tipis di permukaan bawah daun (sporangia jamur).',
+                    'Tanaman mengalami hambatan pertumbuhan ekstrem (kerdil) dan tidak mampu membentuk tongkol.'
+                ],
+                solutions: [
+                    'Wajib melakukan seed treatment (perlakuan benih) menggunakan fungisida berbahan aktif metalaksil sebelum proses penanaman.',
+                    'Tanam varietas jagung yang telah diuji dan bersertifikat resisten bulai.',
+                    'Lakukan penanaman serempak di satu wilayah dengan jeda waktu tanam antar lahan maksimal 14 hari.',
+                    'Segera lakukan pemusnahan (eradikasi) dengan cara mencabut dan membakar tanaman bergejala bulai sesegera mungkin agar tidak menjadi sumber penularan.'
+                ]
+            },
+            'Daun Hawar': {
+                name: 'Daun Hawar',
+                scientific: 'Jamur Exserohilum turcicum',
+                icon: 'wind',
+                category: 'Penyakit Jamur (Fungal Disease)',
+                desc: 'Hawar daun jagung (Northern Corn Leaf Blight) disebabkan oleh jamur Exserohilum turcicum. Penyakit ini sangat umum dijumpai di daerah dataran tinggi atau wilayah dengan suhu harian relatif sejuk (18-27°C) serta embun pagi yang tebal. Jamur ini merusak jaringan klorofil tanaman secara cepat, menyebabkan daun mati kering seperti terbakar sehingga menghambat pengisian biji pada tongkol.',
+                symptoms: [
+                    'Bercak awal berbentuk elips kecil kebasah-basahan pada helai daun bagian bawah.',
+                    'Bercak meluas dengan cepat menjadi berbentuk memanjang elips lebar seperti perahu atau cerutu (panjang 2.5 hingga 15 cm).',
+                    'Warna bercak berubah dari kelabu kehijauan menjadi cokelat kering seperti jerami.',
+                    'Permukaan hawar berdebu hitam kehijauan saat spora jamur matang.'
+                ],
+                solutions: [
+                    'Gunakan varietas tahan hawar daun.',
+                    'Pembersihan sisa tanaman pasca panen dengan cara dipendam atau dibakar secara sanitasi.',
+                    'Atur jarak tanam agar populasi tanaman tidak terlalu rapat demi mengurangi kelembaban mikro di dalam tajuk tanaman.',
+                    'Lakukan pemupukan unsur Kalium (K) berimbang untuk memperkokoh kekebalan dinding sel tanaman.'
+                ]
+            },
+            'Daun Karat': {
+                name: 'Daun Karat',
+                scientific: 'Jamur Puccinia sorghi / polysora',
+                icon: 'flame',
+                category: 'Penyakit Jamur (Fungal Disease)',
+                desc: 'Penyakit karat disebabkan oleh jamur Puccinia sorghi atau Puccinia polysora. Spora jamur ini (urediniospora) sangat mudah terbang terbawa angin melintasi jarak yang sangat jauh. Penyakit ini berkembang pesat di daerah dataran rendah dengan suhu hangat dan kebasahan daun yang tinggi akibat embun malam atau hujan rintik-rintik.',
+                symptoms: [
+                    'Timbul bintil kecil menonjol bulat hingga oval (disebut pustul) berwarna cokelat kemerahan atau jingga menyala di permukaan atas dan bawah daun.',
+                    'Pustul pecah dan mengeluarkan serbuk halus berwarna merah karat jika diraba tangan.',
+                    'Daun yang terserang parah akan menguning, kering, dan rontok lebih cepat.',
+                    'Tanaman kekurangan nutrisi karena efisiensi fotosintesis menurun tajam.'
+                ],
+                solutions: [
+                    'Tanam varietas jagung hibrida unggul yang terbukti kebal atau toleran terhadap karat daun.',
+                    'Pelebaran jarak tanam untuk mengoptimalkan paparan sinar matahari langsung ke permukaan daun guna mengurangi kebasahan.',
+                    'Kendalikan gulma inang (terutama jenis rumput-rumputan liar) di sekitar lahan pertanaman.',
+                    'Semprotkan fungisida kontak atau sistemik berbahan aktif triazol apabila intensitas karat mencapai daun di atas tongkol.'
+                ]
+            },
+            'Daun Sehat': {
+                name: 'Daun Sehat',
+                scientific: 'Tanaman Zea mays Sehat',
+                icon: 'check-circle',
+                category: 'Kondisi Tanaman Optimal',
+                desc: 'Daun jagung dalam keadaan sehat, prima, dan bebas dari patogen merusak. Klorofil berfungsi secara efisien dan optimal untuk proses fotosintesis, menjamin ketersediaan energi bagi tanaman untuk pembentukan batang kokoh, perkembangan sistem akar, serta pengisian biji tongkol jagung yang melimpah.',
+                symptoms: [
+                    'Warna hijau daun merata dari pangkal hingga ujung tanpa adanya noda, bercak kecokelatan, klorosis kuning, atau pustul karat.',
+                    'Tekstur daun kenyal, elastis, kokoh, dan tidak kaku melengkung secara tidak normal.',
+                    'Permukaan daun bersih, segar, dan tulang daun tumbuh normal sempurna tanpa gejala layu.'
+                ],
+                solutions: [
+                    'Lanjutkan pemberian pupuk berimbang N, P, dan K secara berkala sesuai fase pertumbuhan vegetatif dan generatif.',
+                    'Jaga pasokan air tanah tetap optimal terutama saat fase kritis pengisian biji.',
+                    'Lakukan pemantauan rutin visual minimal satu kali seminggu untuk deteksi dini kemungkinan serangan hama pengorok atau penyakit.',
+                    'Pastikan kebersihan drainase agar tidak terjadi pembusukan akar akibat genangan air.'
+                ]
+            }
+        };
+
+        // DOM Elements
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file');
+        const dropzonePrompt = document.getElementById('dropzonePrompt');
+        const previewWrapper = document.getElementById('previewWrapper');
+        const imagePreview = document.getElementById('imagePreview');
+        const btnReset = document.getElementById('btnReset');
+        const btnSubmit = document.getElementById('btnSubmit');
+        const uploadForm = document.getElementById('uploadForm');
+        
+        // Form Loading Animation Elements
+        const scanningOverlay = document.getElementById('scanningOverlay');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const overlaySubtitle = document.getElementById('overlaySubtitle');
+        const overlayProgressBar = document.getElementById('overlayProgressBar');
+
+        // Initialize Lucide Icons
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            renderEncyclopedia();
+            
+            // Check if prediction is loaded, animate its elements
+            {% if prediction %}
+                // Animate confidence bar
+                setTimeout(() => {
+                    const progressBar = document.getElementById('accuracyProgressBar');
+                    if (progressBar) {
+                        progressBar.style.width = '{{ confidence }}%';
+                    }
+                }, 500);
+
+                // Inject prediction details
+                injectPredictionDetails('{{ prediction }}');
+                
+                // Add tab event listeners
+                setupTabNavigation();
+            {% endif %}
+        });
+
+        // 1. Drag and Drop File Selection
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        ['dragleave', 'dragend'].forEach(type => {
+            dropzone.addEventListener(type, () => {
+                dropzone.classList.remove('dragover');
+            });
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+            
+            if (e.dataTransfer.files.length) {
+                fileInput.files = e.dataTransfer.files;
+                handleFileSelection(fileInput.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length) {
+                handleFileSelection(fileInput.files[0]);
+            }
+        });
+
+        function handleFileSelection(file) {
+            // Validate it is an image
+            if (!file.type.startsWith('image/')) {
+                alert('Silakan pilih berkas gambar yang valid (JPG, JPEG, PNG).');
+                resetUploader();
+                return;
+            }
+            
+            // Show preview using FileReader
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imagePreview.src = e.target.result;
+                dropzonePrompt.classList.add('d-none');
+                previewWrapper.classList.remove('d-none');
+                btnReset.classList.remove('d-none');
+                btnSubmit.removeAttribute('disabled');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // 2. Reset Button
+        btnReset.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent opening file chooser
+            resetUploader();
+        });
+
+        function resetUploader() {
+            fileInput.value = '';
+            imagePreview.src = '#';
+            previewWrapper.classList.add('d-none');
+            dropzonePrompt.classList.remove('d-none');
+            btnReset.classList.add('d-none');
+            btnSubmit.setAttribute('disabled', 'true');
+        }
+
+        // 3. Form Submit Scanning Simulation
+        uploadForm.addEventListener('submit', (e) => {
+            // Show scanning overlay
+            scanningOverlay.classList.remove('d-none');
+            
+            let progress = 0;
+            const progressInterval = setInterval(() => {
+                progress += 5;
+                overlayProgressBar.style.width = progress + '%';
+                overlayProgressBar.setAttribute('aria-valuenow', progress);
+                
+                if (progress >= 20 && progress < 45) {
+                    overlayTitle.textContent = "Mengunggah Citra Daun...";
+                    overlaySubtitle.textContent = "Mengirimkan data gambar ke server Flask...";
+                } else if (progress >= 45 && progress < 70) {
+                    overlayTitle.textContent = "Memuat Arsitektur MobileNetV2...";
+                    overlaySubtitle.textContent = "Menginisialisasi bobot (weights) pre-trained TensorFlow...";
+                } else if (progress >= 70 && progress < 90) {
+                    overlayTitle.textContent = "Melakukan Feed-forward & Prediksi...";
+                    overlaySubtitle.textContent = "Menganalisis matriks piksel citra 224x224 RGB...";
+                } else if (progress >= 90) {
+                    overlayTitle.textContent = "Merumuskan Diagnosis Patogen...";
+                    overlaySubtitle.textContent = "Menyusun lembar rekomendasi klinis...";
+                    clearInterval(progressInterval);
+                }
+            }, 100);
+        });
+
+        // 4. Inject Prediction Details (Scientific, Desc, Symptoms, Solutions)
+        function injectPredictionDetails(labelName) {
+            const data = DISEASE_DATABASE[labelName];
+            if (!data) return;
+
+            // Scientific name
+            document.getElementById('resScientific').textContent = data.scientific;
+            
+            // Description
+            document.getElementById('resDesc').textContent = data.desc;
+            
+            // Symptoms
+            const symptomsList = document.getElementById('resSymptoms');
+            symptomsList.innerHTML = '';
+            data.symptoms.forEach(symptom => {
+                const li = document.createElement('li');
+                li.className = 'mb-2';
+                li.innerHTML = `<span class="text-warning fw-bold">&#8226;</span> ${symptom}`;
+                symptomsList.appendChild(li);
+            });
+
+            // Solutions
+            const solutionsList = document.getElementById('resSolutions');
+            solutionsList.innerHTML = '';
+            data.solutions.forEach(sol => {
+                const li = document.createElement('li');
+                li.className = 'mb-2';
+                li.innerHTML = `<span class="text-success fw-bold">&#10003;</span> ${sol}`;
+                solutionsList.appendChild(li);
+            });
+        }
+
+        // 5. Diagnostic Tab Navigation
+        function setupTabNavigation() {
+            const tabButtons = document.querySelectorAll('.diag-tab-btn');
+            const tabContents = document.querySelectorAll('.tab-content');
+
+            tabButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const targetTab = btn.getAttribute('data-tab');
+                    
+                    // Toggle active button
+                    tabButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    
+                    // Toggle active content
+                    tabContents.forEach(c => {
+                        c.classList.remove('active');
+                        if (c.getAttribute('id') === `tab-${targetTab}`) {
+                            c.classList.add('active');
+                        }
+                    });
+                });
+            });
+        }
+
+        // 6. Encyclopedia Grid Generation
+        function renderEncyclopedia() {
+            const grid = document.getElementById('encycloGrid');
+            grid.innerHTML = '';
+            
+            Object.keys(DISEASE_DATABASE).forEach((key, index) => {
+                const disease = DISEASE_DATABASE[key];
+                
+                // Color theme badge based on status
+                const isHealthy = key === 'Daun Sehat';
+                const borderBadge = isHealthy ? 'border-success text-success bg-success' : 'border-warning text-warning bg-warning';
+                
+                const col = document.createElement('div');
+                col.className = 'col-md-6 col-lg-4 animate__animated animate__fadeInUp';
+                col.style.animationDelay = `${index * 0.08}s`;
+                
+                col.innerHTML = `
+                    <div class="encyclo-card d-flex flex-column justify-content-between" onclick="showDiseaseModal('${key}')">
+                        <div>
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="disease-icon"><i data-lucide="${disease.icon}"></i></span>
+                                <span class="badge ${borderBadge} bg-opacity-10 border border-opacity-20 px-2 py-1" style="font-size: 0.7rem;">
+                                    ${isHealthy ? 'Aman' : 'Penyakit'}
+                                </span>
+                            </div>
+                            <h4 class="disease-title font-display text-dark">${disease.name}</h4>
+                            <p class="disease-snippet text-truncate mb-3 text-muted">${disease.desc}</p>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center mt-3 pt-2 border-top border-secondary border-opacity-10">
+                            <span class="font-monospace small text-opacity-50 text-dark" style="font-size: 0.75rem;">${disease.scientific}</span>
+                            <span class="text-success small d-flex align-items-center gap-1" style="font-size: 0.8rem; font-weight: 500;">
+                                Selengkapnya <i data-lucide="chevron-right" style="width: 14px; height: 14px;"></i>
+                            </span>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(col);
+            });
+            
+            // Re-render Lucide icons inside cards
+            lucide.createIcons();
+        }
+
+        // 7. Modal Interaction
+        const diseaseModal = new bootstrap.Modal(document.getElementById('diseaseModal'));
+        
+        function showDiseaseModal(key) {
+            const disease = DISEASE_DATABASE[key];
+            if (!disease) return;
+
+            document.getElementById('modalCategory').textContent = disease.category;
+            document.getElementById('modalTitle').textContent = disease.name;
+            document.getElementById('modalScientific').innerHTML = `<i data-lucide="microscope" class="me-2 text-success" style="width: 14px;"></i>Patogen: <i>${disease.scientific}</i>`;
+            document.getElementById('modalDesc').textContent = disease.desc;
+
+            // Symptoms
+            const modalSymptoms = document.getElementById('modalSymptoms');
+            modalSymptoms.innerHTML = '';
+            disease.symptoms.forEach(symptom => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="text-warning fw-bold me-1">&#8226;</span> ${symptom}`;
+                modalSymptoms.appendChild(li);
+            });
+
+            // Solutions
+            const modalSolutions = document.getElementById('modalSolutions');
+            modalSolutions.innerHTML = '';
+            disease.solutions.forEach(sol => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span class="text-success fw-bold me-1">&#10003;</span> ${sol}`;
+                modalSolutions.appendChild(li);
+            });
+
+            // Show
+            diseaseModal.show();
+            
+            // Re-render Lucide icons in modal
+            lucide.createIcons();
+        }
+    </script>
+</body>
+
+</html>

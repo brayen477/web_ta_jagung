@@ -1,0 +1,18 @@
+Analyzed File: static/uploads\Corn_Health_1088.jpg
+Global Ratio: 96.14%
+ROI Ratio: 93.81%
+Mean Hue: 96.78
+Mean Saturation: 62.15
+Mean Value: 197.32
+Coherence: 0.7776
+AI Class: Daun Sehat
+AI Confidence: 99.87%
+AI Margin: 99.80%
+All Probabilities:
+  Bercak Daun Helminthosporium: 0.02%
+  Bercak Daun Mata Ikan: 0.08%
+  Daun Bercak Abu-Abu: 0.02%
+  Daun Bulai: 0.00%
+  Daun Hawar: 0.01%
+  Daun Karat: 0.00%
+  Daun Sehat: 99.87%
