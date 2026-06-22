@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir --upgrade -r requirements.txt
 # Copy semua file proyek
 COPY . .
 
+# Berikan izin tulis (write) ke folder agar aplikasi bisa menyimpan foto
+RUN chmod -R 777 /app
+
 # Buka port 7860 (wajib untuk Hugging Face Spaces)
 EXPOSE 7860
 
