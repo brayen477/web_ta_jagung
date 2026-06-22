@@ -1,10 +1,10 @@
 import os
-os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import numpy as np
 from flask import Flask, request, render_template, redirect
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import load_img, img_to_array
+from tensorflow.keras.layers import Dense
 
 app = Flask(__name__)
 
@@ -15,9 +15,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Load model MobileNetV2 dari colab
+class SafeDense(Dense):
+    def __init__(self, **kwargs):
+        kwargs.pop('quantization_config', None)
+        super().__init__(**kwargs)
+
+# Load Model AI
 MODEL_PATH = 'model_mobilenet_daun_jagung.h5'
-model = load_model(MODEL_PATH)
+model = load_model(MODEL_PATH, custom_objects={'Dense': SafeDense})
 
 # Urutan 7 Kelas Penyakit (Sesuai output Colab)
 CLASS_NAMES = [
