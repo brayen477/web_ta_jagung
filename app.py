@@ -3,7 +3,7 @@ import numpy as np
 from flask import Flask, request, render_template, redirect
 from werkzeug.utils import secure_filename
 from tensorflow.keras.models import load_model
-from tensorflow.keras.preprocessing import image
+from tensorflow.keras.utils import load_img, img_to_array
 
 app = Flask(__name__)
 
@@ -47,7 +47,7 @@ def validate_leaf_image(img_path):
     """
     try:
         # Load citra
-        img = image.load_img(img_path, target_size=(100, 100))
+        img = load_img(img_path, target_size=(100, 100))
         rgb_pixels = np.array(img.convert('RGB'))
         hsv_img = img.convert('HSV')
         pixels = np.array(hsv_img)  # Shape: (100, 100, 3)
@@ -161,8 +161,8 @@ def validate_leaf_image(img_path):
 
 def predict_image(img_path):
     # Load dan Preprocess Gambar (224x224)
-    img = image.load_img(img_path, target_size=(224, 224))
-    x = image.img_to_array(img)
+    img = load_img(img_path, target_size=(224, 224))
+    x = img_to_array(img)
     x = np.expand_dims(x, axis=0)
     x = x / 255.0  # Normalisasi
     
