@@ -1,4 +1,5 @@
 import os
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
 import numpy as np
 from flask import Flask, request, render_template, redirect
 from werkzeug.utils import secure_filename
